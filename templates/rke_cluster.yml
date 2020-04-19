@@ -1,0 +1,11 @@
+cluster_name: "{{ cluster_name }}"
+
+nodes:
+    - address: "{{ ansible_hostname }}"
+      user: "{{ rke_user }}"
+      role:
+        - controlplane
+        - etcd
+        - worker
+
+ssh_key_path: "/home/{{ rke_user }}/.ssh/id_rsa"

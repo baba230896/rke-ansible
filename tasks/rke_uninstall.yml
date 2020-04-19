@@ -1,0 +1,15 @@
+---
+# Uninstall K8s cluster
+- name: Run RKE remove
+  become: yes
+  become_user: "{{ rke_user }}"
+  shell: |
+    set -eo pipefail
+    /usr/local/bin/rke remove --force --config "{{ rke_config_dir }}/{{ cluster_name }}.yml" | tee "{{ rke_up_logs }}/rke-remove.log"
+  args:
+    chdir: "{{ rke_config_dir }}"
+  register: rke_remove_output
+
+- name: RKE remove output
+  debug:
+    msg: "{{ rke_remove_output }}"

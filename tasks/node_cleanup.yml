@@ -1,0 +1,12 @@
+---
+# Node Clean up
+- name: Remove docker
+  package:
+    name: docker
+    state: absent
+
+- name: Remove RKE user
+  user:
+    name: "{{ rke_user }}"
+    state: absent
+    remove: yes

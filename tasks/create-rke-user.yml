@@ -1,0 +1,45 @@
+---
+- name: Add RKE admin user
+  user:
+    name: "{{ rke_user }}"
+
+- name: Create sudo file
+  file:
+    path: "/etc/sudoers.d/{{ rke_user }}"
+    state: touch
+
+- name: Give rke user passwordless sudo
+  lineinfile:
+    path: "/etc/sudoers.d/{{ rke_user }}"
+    state: present
+    line: 'rke ALL=(ALL:ALL) NOPASSWD: ALL'
+
+- name: Create .ssh directory
+  file:
+    path: "/home/{{ rke_user }}/.ssh"
+    owner: "{{ rke_user }}"
+    group: "{{ rke_user }}"
+    mode: '0700'
+    state: directory
+
+- name: Copy SSH private key
+  copy:
+    src: "{{ inventory_dir }}/id_rsa"
+    dest: "/home/{{ rke_user }}/.ssh/id_rsa"
+    owner: "{{ rke_user }}"
+    group: "{{ rke_user }}"
+    mode: '0600'
+
+- name: Copy SSH public key
+  copy:
+    src: "{{ inventory_dir }}/id_rsa.pub"
+    dest: "/home/{{ rke_user }}/.ssh/id_rsa.pub"
+    owner: "{{ rke_user }}"
+    group: "{{ rke_user }}"
+    mode: '0644'
+
+- name: Set authorized key taken from file
+  authorized_key:
+    user: "{{ rke_user }}"
+    state: present
+    key: "{{ lookup('file', '{{ inventory_dir }}/id_rsa.pub') }}"

@@ -1,0 +1,84 @@
+---
+# tasks file for rke-ansible
+
+- block:
+    - name: Check SSH Keys exists for "{{ rke_user }}" user
+      stat:
+        path: '{{ item }}'
+      register: result
+      with_items:
+        - "{{ inventory_dir }}/id_rsa"
+        - "{{ inventory_dir }}/id_rsa.pub"
+
+    - name: Generate SSH Key Pair for "{{ rke_user }}"
+      command: "ssh-keygen -q -t rsa -b 4096 -P \"\" -C {{ rke_user }} -f {{ inventory_dir }}/id_rsa"
+      when:
+        - not result.results[0].stat.exists
+        - not result.results[1].stat.exists
+  delegate_to: localhost
+  when: not rke_force_uninstall
+
+- block:
+    - name: Create rke user for deployment
+      include_tasks: create-rke-user.yml
+
+    - name: Enable required kernel modules
+      include_tasks: kernel-modules.yml
+
+    - name: disable swap and Modify sysctl entries
+      include_tasks: sysctl-swap.yml
+
+    - name: Download docker-version.sh
+      get_url:
+        url: "{{ docker_binary_url }}"
+        dest: "/usr/local/bin/{{ docker_version }}.sh"
+        mode: "+rx"
+
+    - name: Install Docker
+      shell: "/usr/local/bin/{{ docker_version }}.sh"
+      notify:
+        - enable docker
+
+    - name: Allow dockerroot group to access Docker daemon
+      copy:
+        content: '{ "group": "docker" }'
+        dest: /etc/docker/daemon.json
+      notify:
+        - restart docker
+
+    - name: Add RKE user to dockerroot group
+      user:
+        name: "{{ rke_user }}"
+        groups: [docker]
+        append: yes
+
+    - name: Ensure firewalld is started
+      service:
+        name: firewalld
+        state: started
+        enabled: yes
+
+    # The trusted zone allows all traffic
+    - name: Allow all traffic from cluster CIDR
+      firewalld:
+        zone: trusted
+        source: "{{ cluster_cidr }}"
+        state: enabled
+        immediate: yes
+        permanent: yes
+
+    - name: Update sshd_config for AllowTcpForwarding
+      lineinfile: dest=/etc/ssh/sshd_config regexp='^#AllowTcpForwarding' line='AllowTcpForwarding yes'
+      notify:
+        - restart sshd
+
+    - name: RKE installation
+      include_tasks: rke_installation.yml
+  when: not rke_force_uninstall
+
+- block:
+    - name: RKE uninstall
+      include_tasks: rke_uninstall.yml
+    - name: Node Cleanup
+      include_tasks: node_cleanup.yml
+  when: rke_force_uninstall

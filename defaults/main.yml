@@ -1,0 +1,38 @@
+---
+# defaults file for rke-ansible
+
+random_var: "default-main"
+
+rke_user: rke
+
+cluster_name: my-cluster
+
+# Supported Docker version by RKE - 18.09.2, 18.06.2, 17.03.2
+docker_version: 18.09.2
+docker_binary_url: "https://releases.rancher.com/install-docker/{{ docker_version }}.sh"
+
+cluster_interface: "{{ ansible_default_ipv4.interface }}"
+cluster_cidr: "{{ [ansible_facts[cluster_interface].ipv4.network, ansible_facts[cluster_interface].ipv4.netmask] | join('/') | ipaddr('net') }}"
+
+
+# Refer this page: https://github.com/rancher/rke/releases
+rke_release_version: "v0.2.10"
+kubernetes_version: "v1.15.11"
+
+# OS and architecture type.
+# Refer this link for information: https://github.com/rancher/rke/releases
+os_type: "linux"
+arch_type: "amd64"
+
+# Binaries URLs
+rke_binary_url: "https://github.com/rancher/rke/releases/download/{{ rke_release_version }}/rke_{{ os_type }}-{{ arch_type }}"
+kubectl_binary_url: "https://storage.googleapis.com/kubernetes-release/release/{{ kubernetes_version }}/bin/{{ os_type }}/{{ arch_type }}/kubectl"
+
+rke_config_dir: "/home/{{ rke_user }}"
+rke_force_installation: true
+
+# Log Directory for 'rke up'
+rke_up_logs: "/var/log/rke"
+
+# Uninstall K8s cluster
+rke_force_uninstall: false

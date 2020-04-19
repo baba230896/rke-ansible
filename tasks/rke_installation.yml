@@ -1,0 +1,48 @@
+---
+- name: Download RKE binary
+  get_url:
+    url: "{{ rke_binary_url }}"
+    dest: /usr/local/bin/rke
+    mode: "+rx"
+  register: rke_binary
+
+- name: Create/update RKE config file
+  template:
+    src: rke_cluster.yml
+    dest: "{{ rke_config_dir }}/{{ cluster_name }}.yml"
+    mode: u=rw,g=r,o=
+  register: rke_cluster_config
+
+- name: Change Owner and group
+  file:
+    path: "{{ rke_config_dir }}/{{ cluster_name }}.yml"
+    owner: "{{ rke_user }}"
+    group: "{{ rke_user }}"
+
+- name: Create log directory
+  file:
+    path: "{{ rke_up_logs }}"
+    owner: "{{ rke_user }}"
+    state: directory
+    group: "{{ rke_user }}"
+
+- name: Run RKE installer
+  become: yes
+  become_user: "{{ rke_user }}"
+  shell: |
+    set -eo pipefail
+    /usr/local/bin/rke up --config "{{ rke_config_dir }}/{{ cluster_name }}.yml" | tee "{{ rke_up_logs }}/rke-up.log"
+  args:
+    chdir: "{{ rke_config_dir }}"
+  when: rke_binary is changed or rke_cluster_config is changed or rke_force_installation
+  register: rke_up_output
+
+- name: RKE up output
+  debug:
+    msg: "{{ rke_up_output }}"
+
+- name: Install kubectl
+  get_url:
+    url: "{{ kubectl_binary_url }}"
+    dest: /usr/local/bin/kubectl
+    mode: "+rx"
